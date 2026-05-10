@@ -29,6 +29,26 @@ npm run dev
 npm run dev -- --open
 ```
 
+## OAuth setup
+
+Copy `.env.example` to `.env` and fill in your provider app credentials:
+
+```sh
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+STRAVA_CLIENT_ID=
+STRAVA_CLIENT_SECRET=
+```
+
+For local development, add these redirect URLs to the provider app dashboards:
+
+```txt
+http://127.0.0.1:5173/auth/spotify/callback
+http://127.0.0.1:5173/auth/strava/callback
+```
+
+If Vite starts on another port, add matching callback URLs for that port too.
+
 ## Building
 
 To create a production version of your app:
