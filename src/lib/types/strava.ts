@@ -93,12 +93,14 @@ export type Route = StravaActivity & {
 	summaryPolyline: string;
 };
 
-const runSportTypes = new Set(['Run', 'TrailRun', 'VirtualRun']);
+export function getActivitySportType(activity: Pick<StravaActivity, 'sport_type' | 'type'>) {
+	return activity.sport_type ?? activity.type ?? 'Unknown';
+}
 
 export function toRoute(activity: StravaActivity): Route | null {
-	const summaryPolyline = activity.map?.summary_polyline;
+	const summaryPolyline = activity.map?.summary_polyline || activity.map?.polyline;
 
-	if (!summaryPolyline || !isRunActivity(activity)) {
+	if (!summaryPolyline) {
 		return null;
 	}
 
@@ -120,11 +122,6 @@ export function toRoute(activity: StravaActivity): Route | null {
 		averagePaceSecondsPerKm: distanceKm > 0 ? durationSeconds / distanceKm : null,
 		summaryPolyline
 	};
-}
-
-function isRunActivity(activity: StravaActivity) {
-	const sportType = activity.sport_type ?? activity.type;
-	return sportType ? runSportTypes.has(sportType) : false;
 }
 
 function getIanaTimeZone(timezone: string | undefined) {
