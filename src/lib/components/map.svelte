@@ -2,6 +2,16 @@
 	import { faFlagCheckered, faMapPin } from '@fortawesome/free-solid-svg-icons';
 	import type { Route } from '$lib/types/strava';
 	import { SvelteMap } from 'svelte/reactivity';
+	import {
+		createHeatLayerData,
+		renderRouteHeatLayer,
+		routesForPoint,
+		heatPopup,
+		type HeatLayerData,
+		type HeatLayerFactory,
+		type HeatLineStyle,
+		type RouteGeometry
+	} from './map_heat_layer';
 
 	type LatLng = [number, number];
 	type BoundsOptions = {
@@ -43,6 +53,7 @@
 		getBounds(): LeafletBounds;
 		latLngToLayerPoint(latLng: LatLng): LeafletPoint;
 		layerPointToLatLng(point: LeafletPoint): LatLng;
+		closePopup(): LeafletMap;
 		on(event: string, handler: () => void): LeafletMap;
 		off(event: string, handler: () => void): LeafletMap;
 		remove(): void;
@@ -64,9 +75,9 @@
 		}): LeafletDivIcon;
 		map(element: HTMLDivElement, options: Record<string, boolean>): LeafletMap;
 		marker(point: LatLng, options?: { icon?: LeafletDivIcon }): LeafletMarker;
-		polyline(points: LatLng[], options: RouteStyle): LeafletPolyline;
+		polyline(points: LatLng[], options: RouteStyle | HeatLineStyle): LeafletPolyline;
 		tileLayer(url: string, options: Record<string, string | number>): LeafletLayer;
-	};
+	} & HeatLayerFactory;
 
 	type FontAwesomeIcon = {
 		icon: [number, number, string[], string, string | string[]];
@@ -75,15 +86,22 @@
 	let {
 		routes = [],
 		highlightedActivityId = null,
-		selectedActivityId = null
+		selectedActivityId = null,
+		onActivityHover = () => {},
+		onActivityLeave = () => {},
+		onActivitySelect = () => {}
 	}: {
 		routes?: Route[];
 		highlightedActivityId?: number | null;
 		selectedActivityId?: number | null;
+		onActivityHover?: (activityId: number) => void;
+		onActivityLeave?: () => void;
+		onActivitySelect?: (activityId: number) => void;
 	} = $props();
 
 	let mapEl = $state<HTMLDivElement | null>(null);
 	let leafletMap: LeafletMap | null = null;
+	let heatLayer: LeafletFeatureGroup | null = null;
 	let routeLayer: LeafletFeatureGroup | null = null;
 	let arrowLayer: LeafletFeatureGroup | null = null;
 	const routePolylines = new SvelteMap<number, LeafletPolyline>();
@@ -92,6 +110,8 @@
 	let prevSelectedId: number | null = null;
 	let mapChangeHandler: (() => void) | null = null;
 	let leafletReady = $state(false);
+	let heatLayerData: HeatLayerData | null = null;
+	let heatRouteGeometries: RouteGeometry[] = [];
 
 	const center: LatLng = [37.7749, -122.4194];
 	const zoom = 11;
@@ -126,17 +146,19 @@
 
 		leafletMap = L.map(mapEl, {
 			zoomControl: true,
-			attributionControl: true
+			attributionControl: true,
+			preferCanvas: true
 		}).setView(center, zoom);
 
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
 			maxZoom: 19,
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 		}).addTo(leafletMap);
 
+		heatLayer = L.featureGroup().addTo(leafletMap);
 		routeLayer = L.featureGroup().addTo(leafletMap);
 		arrowLayer = L.featureGroup().addTo(leafletMap);
-		
+
 		mapChangeHandler = () => {
 			const activeRouteId = selectedActivityId ?? highlightedActivityId;
 			refreshRouteDecorations(activeRouteId);
@@ -144,8 +166,75 @@
 		leafletMap.on('zoomend', mapChangeHandler);
 		leafletMap.on('moveend', mapChangeHandler);
 
+		const mapClickHandler = (e: any) => {
+			if (selectedActivityId !== null) return;
+			if (!heatLayerData) return;
+			
+			const routes = routesForPoint(heatLayerData, [e.latlng.lat, e.latlng.lng]);
+			if (routes.length === 0) return;
+			
+			const L = getLeaflet();
+			if (!L) return;
+			
+			leafletMap.closePopup();
+			L.popup({
+				closeButton: true,
+				autoClose: true
+			})
+				.setLatLng(e.latlng)
+				.setContent(heatPopup(routes))
+				.openOn(leafletMap);
+		};
+		leafletMap.on('click', mapClickHandler);
+		heatLayer.on('click', mapClickHandler);
+
+		const popupCloseHandler = () => {
+			onActivityLeave();
+		};
+		leafletMap.on('popupclose', popupCloseHandler);
+
+		const popupInteractionHandler = (event: Event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
+
+			const button = target.closest<HTMLButtonElement>('.heatmap-popup__activity');
+			const routeId = Number(button?.dataset.routeId);
+
+			if (!button || !Number.isFinite(routeId)) {
+				return;
+			}
+
+			if (selectedActivityId !== null) {
+				return;
+			}
+
+			if (event.type === 'click') {
+				onActivitySelect(routeId);
+			} else if (event.type === 'mouseover' || event.type === 'focusin') {
+				onActivityHover(routeId);
+			} else if (event.type === 'mouseout' || event.type === 'focusout') {
+				onActivityLeave();
+			}
+		};
+
+		mapEl.addEventListener('click', popupInteractionHandler);
+		mapEl.addEventListener('mouseover', popupInteractionHandler);
+		mapEl.addEventListener('mouseout', popupInteractionHandler);
+		mapEl.addEventListener('focusin', popupInteractionHandler);
+		mapEl.addEventListener('focusout', popupInteractionHandler);
+
 		return () => {
 			if (leafletMap) {
+				mapEl?.removeEventListener('click', popupInteractionHandler);
+				mapEl?.removeEventListener('mouseover', popupInteractionHandler);
+				mapEl?.removeEventListener('mouseout', popupInteractionHandler);
+				mapEl?.removeEventListener('focusin', popupInteractionHandler);
+				mapEl?.removeEventListener('focusout', popupInteractionHandler);
+				leafletMap.off('click', mapClickHandler);
+				leafletMap.off('popupclose', popupCloseHandler);
+				heatLayer?.off('click', mapClickHandler);
 				if (mapChangeHandler) {
 					leafletMap.off('zoomend', mapChangeHandler);
 					leafletMap.off('moveend', mapChangeHandler);
@@ -153,6 +242,7 @@
 				}
 				leafletMap.remove();
 				leafletMap = null;
+				heatLayer = null;
 				routeLayer = null;
 				arrowLayer = null;
 				routePolylines.clear();
@@ -162,7 +252,7 @@
 	});
 
 	$effect(() => {
-		if (!leafletMap || !routeLayer || !hasLeaflet()) {
+		if (!leafletMap || !heatLayer || !routeLayer || !hasLeaflet()) {
 			return;
 		}
 
@@ -170,13 +260,15 @@
 		if (!L) {
 			return;
 		}
-		
+
 		const currentRoutes = routes;
-		
+
+		heatLayer.clearLayers();
 		routeLayer.clearLayers();
 		arrowLayer?.clearLayers();
 		routePolylines.clear();
 		routePoints.clear();
+		heatRouteGeometries = [];
 
 		for (const [index, route] of currentRoutes.entries()) {
 			const points = decodePolyline(route.summaryPolyline);
@@ -185,15 +277,19 @@
 				continue;
 			}
 
+			heatRouteGeometries.push({ route, points });
+
 			const polyline = L.polyline(points, {
 				...baseRouteStyle(index)
 			});
 
-			polyline.bindPopup(routePopup(route));
 			polyline.addTo(routeLayer);
 			routePolylines.set(route.id, polyline);
 			routePoints.set(route.id, points);
 		}
+
+		heatLayerData = createHeatLayerData(heatRouteGeometries);
+		redrawHeatLayer();
 
 		if (!didInitialFit && currentRoutes.length > 0 && routeLayer.getLayers().length > 0) {
 			leafletMap.fitBounds(routeLayer.getBounds(), {
@@ -211,7 +307,7 @@
 
 		const activeRouteId = selectedActivityId ?? highlightedActivityId;
 
-		for (const [index, route] of routes.entries()) {
+		for (const route of routes) {
 			const polyline = routePolylines.get(route.id);
 
 			if (!polyline) {
@@ -224,7 +320,7 @@
 				polyline.setStyle(highlightedRouteStyle());
 				polyline.bringToFront();
 			} else {
-				polyline.setStyle(baseRouteStyle(index));
+				polyline.setStyle(hiddenRouteStyle());
 			}
 		}
 
@@ -249,11 +345,47 @@
 		prevSelectedId = selectedActivityId ?? null;
 	});
 
+	$effect(() => {
+		if (!leafletMap || !heatLayer) {
+			return;
+		}
+
+		if (selectedActivityId === null) {
+			redrawHeatLayer();
+		} else {
+			leafletMap.closePopup();
+			heatLayer.clearLayers();
+		}
+	});
+
+	function redrawHeatLayer() {
+		if (!leafletMap || !heatLayer || selectedActivityId !== null) {
+			heatLayer?.clearLayers();
+			return;
+		}
+
+		const L = getLeaflet();
+		if (!L || !heatLayerData) {
+			return;
+		}
+
+		renderRouteHeatLayer(L, leafletMap, heatLayer, heatLayerData, heatRouteGeometries);
+	}
+
 	function baseRouteStyle(index: number): RouteStyle {
 		return {
 			color: index === 0 ? '#2563eb' : '#4b5563',
 			weight: index === 0 ? 5 : 4,
-			opacity: 0.75,
+			opacity: 0,
+			lineJoin: 'round'
+		};
+	}
+
+	function hiddenRouteStyle(): RouteStyle {
+		return {
+			color: 'transparent',
+			weight: 0,
+			opacity: 0,
 			lineJoin: 'round'
 		};
 	}
@@ -511,56 +643,6 @@
 			nextIndex: index
 		};
 	}
-
-	function routePopup(route: Route) {
-		return `
-			<div class="route-popup">
-				<strong>${escapeHtml(route.title)}</strong>
-				<dl>
-					<div><dt>Start</dt><dd>${escapeHtml(route.formattedStartTime)}</dd></div>
-					<div><dt>Distance</dt><dd>${formatDistance(route.distanceMeters)}</dd></div>
-					<div><dt>Duration</dt><dd>${formatDuration(route.durationSeconds)}</dd></div>
-					<div><dt>Avg pace</dt><dd>${formatPace(route.averagePaceSecondsPerKm)}</dd></div>
-				</dl>
-			</div>
-		`;
-	}
-
-	function formatDistance(meters: number) {
-		return `${(meters / 1000).toFixed(2)} km`;
-	}
-
-	function formatDuration(seconds: number) {
-		const hours = Math.floor(seconds / 3600);
-		const minutes = Math.floor((seconds % 3600) / 60);
-		const remainingSeconds = seconds % 60;
-
-		if (hours > 0) {
-			return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-		}
-
-		return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-	}
-
-	function formatPace(secondsPerKm: number | null) {
-		if (secondsPerKm === null) {
-			return 'N/A';
-		}
-
-		const minutes = Math.floor(secondsPerKm / 60);
-		const seconds = Math.round(secondsPerKm % 60);
-
-		return `${minutes}:${String(seconds).padStart(2, '0')} /km`;
-	}
-
-	function escapeHtml(value: string) {
-		return value
-			.replaceAll('&', '&amp;')
-			.replaceAll('<', '&lt;')
-			.replaceAll('>', '&gt;')
-			.replaceAll('"', '&quot;')
-			.replaceAll("'", '&#039;');
-	}
 </script>
 
 <svelte:head>
@@ -604,35 +686,61 @@
 		color: #1b1f2a;
 	}
 
-	:global(.route-popup strong) {
-		display: block;
+	:global(.heatmap-popup) {
+		min-width: 150px;
+		max-width: 200px;
+	}
+
+	:global(.heatmap-popup__header) {
 		margin-bottom: 8px;
 		color: #111827;
 		font-size: 14px;
 	}
 
-	:global(.route-popup dl) {
-		display: grid;
-		gap: 4px;
-		margin: 0;
-		min-width: 190px;
-	}
-
-	:global(.route-popup div) {
+	:global(.heatmap-popup__list) {
 		display: flex;
-		justify-content: space-between;
-		gap: 16px;
+		max-height: 200px;
+		flex-direction: column;
+		gap: 4px;
+		overflow-y: auto;
 	}
 
-	:global(.route-popup dt) {
-		color: #6b7280;
+	:global(.heatmap-popup__activity) {
+		display: flex;
+		width: 100%;
+		align-items: baseline;
+		gap: 8px;
+		border: 0;
+		border-radius: 6px;
+		background: #f4f4f5;
+		padding: 7px 8px;
+		color: #18181b;
+		text-align: left;
+		transition:
+			background-color 140ms ease,
+			color 140ms ease;
+	}
+
+	:global(.heatmap-popup__activity:hover),
+	:global(.heatmap-popup__activity:focus-visible) {
+		background: #fed7aa;
+		color: #9a3412;
+		outline: none;
+	}
+
+	:global(.heatmap-popup__activity span) {
+		flex: 0 0 auto;
+		color: #71717a;
+		font-size: 12px;
 		font-weight: 600;
 	}
 
-	:global(.route-popup dd) {
-		margin: 0;
-		color: #111827;
-		text-align: right;
+	:global(.heatmap-popup__activity strong) {
+		min-width: 0;
+		overflow: hidden;
+		font-size: 13px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	:global(.route-marker-wrapper) {

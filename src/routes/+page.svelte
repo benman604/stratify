@@ -77,12 +77,41 @@
 						routes={data.routes}
 						{highlightedActivityId}
 						{selectedActivityId}
+						onActivityHover={(activityId) => (highlightedActivityId = activityId)}
+						onActivityLeave={() => (highlightedActivityId = null)}
+						onActivitySelect={(activityId) => {
+							selectedActivityId = activityId;
+							highlightedActivityId = activityId;
+						}}
 					></Map>
 				</div>
 				<div class="h-50 w-full py-4">
-					<div class="h-full w-full rounded-lg bg-gray-200 p-4">
-						<p class="text-sm text-gray-700">Elevation profiles and route details go here.</p>
-					</div>
+					{#if selectedActivity}
+						<div class="h-full w-full rounded-lg bg-gray-200 p-4">
+							<p class="text-sm text-gray-700">Elevation profiles and route details go here.</p>
+						</div>
+					{:else}
+						<div
+							class="flex h-full w-full flex-col justify-center gap-3 rounded-lg bg-gray-100 p-4"
+						>
+							<div class="flex items-center justify-between gap-4">
+								<div>
+									<h2 class="text-sm font-semibold text-zinc-900">Route heatmap</h2>
+									<p class="text-sm text-zinc-600">
+										Grid cells darken as more activities pass through.
+									</p>
+								</div>
+								<p class="text-xs font-medium text-zinc-500">Light to heavy</p>
+							</div>
+							<div
+								class="h-4 w-full rounded-sm border border-zinc-300 bg-[linear-gradient(90deg,lightgray,darkred)]"
+							></div>
+							<div class="flex justify-between text-xs text-zinc-600">
+								<span>Fewer routes</span>
+								<span>More routes</span>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</section>
