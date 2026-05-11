@@ -6,17 +6,26 @@
 	import ActivitiesList from '$lib/components/activities_list.svelte';
 	import Map from '../lib/components/map.svelte';
 	import type { PageData } from './$types';
+	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
 	let highlightedActivityId = $state<number | null>(null);
 	let selectedActivityId = $state<number | null>(null);
+
 	let selectedActivity = $derived.by(() => {
 		if (!selectedActivityId) {
 			return null;
 		}
 
-		return data.routes?.find((route) => route.id === selectedActivityId) ?? null;
+		// Return detailed activity if fetched, otherwise return summary
+		let selection = data.routes?.find((route) => route.id === selectedActivityId) ?? null;
+		return selection;
 	});
+
+	function handleActivitySelect(activityId: number) {
+		selectedActivityId = activityId;
+		highlightedActivityId = activityId;
+	}
 </script>
 
 <main class="flex h-screen w-full flex-col overflow-hidden">
@@ -36,9 +45,13 @@
 	<div class="flex min-h-0 flex-1 overflow-hidden">
 		<section class="h-full min-h-0 w-64 px-4 pt-0 pb-4">
 			<div class="flex h-full min-h-0 w-full flex-col">
-				<LoginStrava strava={data.strava} />
+				{#if !selectedActivity}
+					<div class="mb-3">
+						<LoginStrava strava={data.strava} />
+					</div>
+				{/if}
 
-				<div class="no-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto">
+				<div class="no-scrollbar min-h-0 flex-1 overflow-y-auto">
 					{#if data.strava}
 						{#if selectedActivity}
 							<Activity
@@ -55,10 +68,7 @@
 								{selectedActivityId}
 								onActivityHover={(activityId) => (highlightedActivityId = activityId)}
 								onActivityLeave={() => (highlightedActivityId = null)}
-								onActivitySelect={(activityId) => {
-									selectedActivityId = activityId;
-									highlightedActivityId = activityId;
-								}}
+								onActivitySelect={handleActivitySelect}
 							/>
 						{/if}
 					{:else}
@@ -79,10 +89,7 @@
 						{selectedActivityId}
 						onActivityHover={(activityId) => (highlightedActivityId = activityId)}
 						onActivityLeave={() => (highlightedActivityId = null)}
-						onActivitySelect={(activityId) => {
-							selectedActivityId = activityId;
-							highlightedActivityId = activityId;
-						}}
+						onActivitySelect={handleActivitySelect}
 					></Map>
 				</div>
 				<div class="h-50 w-full py-4">

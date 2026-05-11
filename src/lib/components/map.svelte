@@ -170,7 +170,7 @@
 			if (selectedActivityId !== null) return;
 			if (!heatLayerData) return;
 			
-			const routes = routesForPoint(heatLayerData, [e.latlng.lat, e.latlng.lng]);
+			const routes = routesForPoint(heatLayerData, [e.latlng.lat, e.latlng.lng], leafletMap!);
 			if (routes.length === 0) return;
 			
 			const L = getLeaflet();
@@ -375,7 +375,7 @@
 	function baseRouteStyle(index: number): RouteStyle {
 		return {
 			color: index === 0 ? '#2563eb' : '#4b5563',
-			weight: index === 0 ? 5 : 4,
+			weight: 2.5,
 			opacity: 0,
 			lineJoin: 'round'
 		};

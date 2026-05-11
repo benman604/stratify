@@ -12,6 +12,21 @@ export type PolylineMap = {
 	resource_state?: number;
 };
 
+export type Photo = {
+	id: number;
+	resource_state: number;
+	ref_id?: number;
+	athlete_id?: number;
+	created_at: string;
+	updated_at: string;
+	caption?: string;
+	location?: string;
+	latlng?: LatLng;
+	sizes: Record<string, [number, number]>;
+	unique_id?: string;
+	urls: Record<string, string>;
+};
+
 export type PhotosSummary = {
 	count: number;
 	primary?: {

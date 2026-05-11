@@ -49,7 +49,7 @@ export const GET: RequestHandler = ({ cookies, url, params }) => {
             redirect_uri: callbackUrl(url.origin, provider),
             response_type: 'code',
             approval_prompt: 'auto',
-            scope: 'read,activity:read',
+            scope: 'read,activity:read_all',
             state
         }).toString();
 

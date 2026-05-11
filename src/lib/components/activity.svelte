@@ -1,10 +1,65 @@
 <script lang="ts">
 	import { Fa } from 'svelte-fa';
+    import { faAngleLeft } from '@fortawesome/free-solid-svg-icons';
 	import { getActivityIcon } from '$lib/types/activity_icons';
 	import PhotoCarousel from '$lib/components/photo_carousel.svelte';
 	import type { Route } from '$lib/types/strava';
+	import type { Photo } from '$lib/types/strava';
 
 	let { activity, onBack = () => {} }: { activity: Route; onBack?: () => void } = $props();
+
+	let photos: Photo[] = $state([]);
+	let loadingPhotos = $state(false);
+	let photoFetchError = $state<string | null>(null);
+
+	async function fetchPhotos() {
+		const debugId = `[PhotoFetch-${activity.id}]`;
+		
+		if (!activity.id) {
+			return;
+		}
+		
+		loadingPhotos = true;
+		photoFetchError = null;
+		try {
+			const url = `/api/activities/${activity.id}/photos`;
+			console.log(`${debugId} Fetching from: ${url}`);
+			const response = await fetch(url);
+			console.log(`${debugId} Response status: ${response.status}`);
+			console.log(`${debugId} Response ok: ${response.ok}`);
+			
+			if (response.ok) {
+				const data = await response.json();
+				console.log(`${debugId} Received data:`, data);
+				console.log(`${debugId} Data is array: ${Array.isArray(data)}`);
+				console.log(`${debugId} Data length: ${Array.isArray(data) ? data.length : 'N/A'}`);
+				photos = data;
+				console.log(`${debugId} Photos state updated, count: ${photos.length}`);
+			} else {
+				const errorText = await response.text();
+				const errMsg = `HTTP ${response.status}: ${errorText}`;
+				console.error(`${debugId} Failed response:`, errMsg);
+				photoFetchError = errMsg;
+			}
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			console.error(`${debugId} Fetch error:`, err);
+			photoFetchError = errMsg;
+		} finally {
+			loadingPhotos = false;
+			console.log(`${debugId} Fetch complete. Photos: ${photos.length}, Error: ${photoFetchError}`);
+		}
+	}
+
+	$effect(() => {
+		console.log('[Activity] Effect running - activity.id:', activity.id, 'photo_count:', activity.photo_count);
+		if (activity.id) {
+			console.log('[Activity] Conditions met, calling fetchPhotos');
+			fetchPhotos();
+		} else {
+			console.log('[Activity] Conditions not met for photo fetch');
+		}
+	});
 
 	function formatLongDate(value: string | undefined) {
 		if (!value) {
@@ -68,23 +123,24 @@
 <div class="flex flex-col gap-4">
 	<button
 		type="button"
-		class="text-left text-sm font-medium text-orange-600 hover:text-orange-700"
+		class="text-left text-sm font-medium text-orange-600 hover:text-orange-700 cursor-pointer inline-flex items-center"
 		onclick={onBack}
 	>
-		Back to Activities
+		<Fa icon={faAngleLeft} class="mr-2" /> Back to Activities
 	</button>
 
-	<div class="flex items-center gap-2">
-		<Fa icon={getActivityIcon(activity)} class="text-2xl text-orange-600" />
-		<h2 class="text-lg font-semibold text-zinc-900">{activity.name}</h2>
-	</div>
-
-	<p class="text-sm text-zinc-500">
-		{formatLongDate(activity.localStartTime || activity.startTime)}
-	</p>
-
+    
 	<div class="rounded-lg bg-zinc-100 p-3">
-		<div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <Fa icon={getActivityIcon(activity)} class="text-2xl text-orange-600" />
+            <h2 class="text-lg font-semibold text-zinc-900">{activity.name}</h2>
+        </div>
+    
+        <p class="text-sm text-zinc-500 mb-4">
+            {formatLongDate(activity.localStartTime || activity.startTime)}
+        </p>
+
+		<div class="flex items-center justify-between gap-2 mb-0">
 			<div>
 				<p class="text-xs uppercase tracking-wide text-zinc-500">Distance</p>
 				<p class="text-lg font-semibold text-zinc-900">
@@ -98,17 +154,18 @@
 				</p>
 			</div>
 		</div>
-		<p class="mt-2 text-sm text-zinc-600">{formatDuration(activity.durationSeconds)}</p>
+        <p class="text-md text-zinc-600 text-right">{formatDuration(activity.durationSeconds)}</p>
 	</div>
 
-	<PhotoCarousel photos={activity.photos} />
+	<PhotoCarousel {photos} />
 
-	<div class="space-y-2">
-		<p class="text-xs uppercase tracking-wide text-zinc-500">Description</p>
-		<p class="text-sm text-zinc-700">
-			{activity.description ?? 'No description yet.'}
-		</p>
-	</div>
+    {#if activity.description}
+        <div class="space-y-2">
+            <p class="text-sm text-zinc-700">
+                {activity.description}
+            </p>
+        </div>
+    {/if}
 
 	<div class="space-y-1 text-sm text-zinc-700">
 		<p>

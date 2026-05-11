@@ -1,4 +1,5 @@
 import type { LatLng, Route } from '$lib/types/strava';
+import type { LeafletMap } from 'svelte-leafletjs';
 
 export type HeatLineStyle = {
 	color: string;
@@ -6,6 +7,8 @@ export type HeatLineStyle = {
 	lineJoin: string;
 	opacity: number;
 	weight: number;
+	interactive?: boolean;
+	bubblingMouseEvents?: boolean;
 };
 
 export type HeatLayerGroup = {
@@ -207,16 +210,62 @@ export function renderRouteHeatLayer(
 	}
 }
 
-export function routesForPoint(heatLayerData: HeatLayerData, point: LatLng) {
+function getMetersPerPixel(map: LeafletMap) {
+	const zoom = map.getZoom();
+
+	// Earth circumference at equator in meters
+	const C = 40075016.686;
+
+	return C / (256 * Math.pow(2, zoom));
+}
+
+export function routesForPoint(
+	heatLayerData: HeatLayerData,
+	point: LatLng,
+	map: LeafletMap
+): Route[] {
 	const projected = projectLatLng(point);
+
 	const x = projectedCell(projected.x);
 	const y = projectedCell(projected.y);
-	const containingCell = heatLayerData.cellsByKey.get(cellKey(x, y));
-	const routeIds = containingCell?.routeIds ?? nearestCellRouteIds(heatLayerData, projected, x, y);
+
+	const baseCell = heatLayerData.cellsByKey.get(cellKey(x, y));
+
+	// fallback if missing
+	const baseRouteIds = baseCell?.routeIds ?? new Set<number>();
+
+	// --- zoom-aware expansion ---
+	const metersPerPixel = getMetersPerPixel(map);
+	const cellSizeMeters = heatCellSizeMeters;
+
+	const cellsPerPixel = metersPerPixel / cellSizeMeters;
+
+	// how many cells we expand outward (Manhattan radius in cell space)
+	const PIXEL_AREA = 3; // tune this
+	const radius = Math.ceil(PIXEL_AREA * cellsPerPixel);
+
+	const routeIds = new Set<number>(baseRouteIds);
+
+	// scan surrounding cells (Manhattan distance)
+	for (let dx = -radius; dx <= radius; dx++) {
+		for (let dy = -radius; dy <= radius; dy++) {
+			if (Math.abs(dx) + Math.abs(dy) > radius) continue;
+
+			const cell = heatLayerData.cellsByKey.get(
+				cellKey(x + dx, y + dy)
+			);
+
+			if (!cell) continue;
+
+			for (const id of cell.routeIds) {
+				routeIds.add(id);
+			}
+		}
+	}
 
 	return Array.from(routeIds)
 		.map((routeId) => heatLayerData.routesById.get(routeId))
-		.filter((route): route is Route => route !== undefined)
+		.filter((r): r is Route => r !== undefined)
 		.sort((a, b) => Date.parse(b.startTime) - Date.parse(a.startTime));
 }
 
@@ -233,7 +282,7 @@ export function heatStyleForPoint(heatLayerData: HeatLayerData, point: LatLng): 
 		lineCap: 'round',
 		lineJoin: 'round',
 		opacity: 0.9,
-		weight: 6
+		weight: 4
 	};
 }
 
@@ -381,6 +430,15 @@ export function heatPopup(routes: Route[]) {
 	`;
 }
 
+export function projectedCellToLatLng(cellX: number, cellY: number): LatLng {
+	const x = cellX * heatCellSizeMeters;
+	const y = cellY * heatCellSizeMeters;
+	const lng = (x / earthRadiusMeters) * (180 / Math.PI);
+	const lat =
+		(2 * Math.atan(Math.exp(y / earthRadiusMeters)) - Math.PI / 2) * (180 / Math.PI);
+	return [lat, lng];
+}
+
 function formatPopupActivityDate(route: Route) {
 	return new Intl.DateTimeFormat(undefined, {
 		weekday: 'short',
@@ -435,6 +493,18 @@ function projectLatLng([lat, lng]: LatLng): ProjectedPoint {
 		x: earthRadiusMeters * lngRadians,
 		y: earthRadiusMeters * Math.log(Math.tan(Math.PI / 4 + latRadians / 2))
 	};
+}
+
+export function projectLatLngExport([lat, lng]: LatLng): ProjectedPoint {
+	return projectLatLng([lat, lng]);
+}
+
+export function projectedCellExport(value: number): number {
+	return projectedCell(value);
+}
+
+export function getCellSizeMeters(): number {
+	return heatCellSizeMeters;
 }
 
 function escapeHtml(value: string) {
