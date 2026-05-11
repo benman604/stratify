@@ -23,22 +23,14 @@
 		photoFetchError = null;
 		try {
 			const url = `/api/activities/${activity.id}/photos`;
-			console.log(`${debugId} Fetching from: ${url}`);
 			const response = await fetch(url);
-			console.log(`${debugId} Response status: ${response.status}`);
-			console.log(`${debugId} Response ok: ${response.ok}`);
 			
 			if (response.ok) {
 				const data = await response.json();
-				console.log(`${debugId} Received data:`, data);
-				console.log(`${debugId} Data is array: ${Array.isArray(data)}`);
-				console.log(`${debugId} Data length: ${Array.isArray(data) ? data.length : 'N/A'}`);
 				photos = data;
-				console.log(`${debugId} Photos state updated, count: ${photos.length}`);
 			} else {
 				const errorText = await response.text();
 				const errMsg = `HTTP ${response.status}: ${errorText}`;
-				console.error(`${debugId} Failed response:`, errMsg);
 				photoFetchError = errMsg;
 			}
 		} catch (err) {
@@ -47,17 +39,12 @@
 			photoFetchError = errMsg;
 		} finally {
 			loadingPhotos = false;
-			console.log(`${debugId} Fetch complete. Photos: ${photos.length}, Error: ${photoFetchError}`);
 		}
 	}
 
 	$effect(() => {
-		console.log('[Activity] Effect running - activity.id:', activity.id, 'photo_count:', activity.photo_count);
 		if (activity.id) {
-			console.log('[Activity] Conditions met, calling fetchPhotos');
 			fetchPhotos();
-		} else {
-			console.log('[Activity] Conditions not met for photo fetch');
 		}
 	});
 

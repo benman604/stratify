@@ -4,80 +4,34 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import {
 		createHeatLayerData,
+		getHighestDensityCenter,
 		renderRouteHeatLayer,
 		routesForPoint,
 		heatPopup,
 		type HeatLayerData,
-		type HeatLayerFactory,
-		type HeatLineStyle,
 		type RouteGeometry
 	} from './map_heat_layer';
 
-	type LatLng = [number, number];
-	type BoundsOptions = {
-		padding: LatLng;
-		maxZoom: number;
-	};
-	type LeafletBounds = {
-		getNorthWest(): LatLng;
-		getNorthEast(): LatLng;
-	};
-	type LeafletPoint = {
-		x: number;
-		y: number;
-	};
-	type LeafletDivIcon = object;
-	type LeafletLayer = {
-		addTo(target: LeafletMap | LeafletFeatureGroup): LeafletLayer;
-		bindPopup(html: string): LeafletLayer;
-		setZIndexOffset(offset: number): LeafletLayer;
-	};
-	type LeafletPolyline = LeafletLayer & {
-		addTo(target: LeafletMap | LeafletFeatureGroup): LeafletPolyline;
-		bringToFront(): LeafletPolyline;
-		getBounds(): LeafletBounds;
-		setStyle(options: RouteStyle): LeafletPolyline;
-	};
-	type LeafletMarker = LeafletLayer & {
-		addTo(target: LeafletMap | LeafletFeatureGroup): LeafletMarker;
-		setZIndexOffset(offset: number): LeafletMarker;
-	};
-	type LeafletFeatureGroup = {
-		addTo(target: LeafletMap): LeafletFeatureGroup;
-		clearLayers(): void;
-		getBounds(): LeafletBounds;
-		getLayers(): LeafletLayer[];
-	};
-	type LeafletMap = {
-		fitBounds(bounds: LeafletBounds, options: BoundsOptions): void;
-		getBounds(): LeafletBounds;
-		latLngToLayerPoint(latLng: LatLng): LeafletPoint;
-		layerPointToLatLng(point: LeafletPoint): LatLng;
-		closePopup(): LeafletMap;
-		on(event: string, handler: () => void): LeafletMap;
-		off(event: string, handler: () => void): LeafletMap;
-		remove(): void;
-		setView(center: LatLng, zoom: number): LeafletMap;
-	};
+	// import { LeafletMap } from 'svelte-leafletjs';
+
+	import type {
+		Map as LeafletMap,
+		Polyline as LeafletPolyline,
+		FeatureGroup as LeafletFeatureGroup,
+		LatLngTuple,
+		Point,
+	} from 'leaflet';
+
+	type LatLng = LatLngTuple;
+
+	type LeafletPoint = Point;
+
 	type RouteStyle = {
 		color: string;
-		lineJoin: string;
+		lineJoin: import('leaflet').LineJoinShape;
 		opacity: number;
 		weight: number;
 	};
-	type LeafletFactory = {
-		featureGroup(): LeafletFeatureGroup;
-		divIcon(options: {
-			className?: string;
-			html?: string;
-			iconSize?: [number, number];
-			iconAnchor?: [number, number];
-		}): LeafletDivIcon;
-		map(element: HTMLDivElement, options: Record<string, boolean>): LeafletMap;
-		marker(point: LatLng, options?: { icon?: LeafletDivIcon }): LeafletMarker;
-		polyline(points: LatLng[], options: RouteStyle | HeatLineStyle): LeafletPolyline;
-		tileLayer(url: string, options: Record<string, string | number>): LeafletLayer;
-	} & HeatLayerFactory;
 
 	type FontAwesomeIcon = {
 		icon: [number, number, string[], string, string | string[]];
@@ -121,7 +75,7 @@
 			return null;
 		}
 
-		return (window as Window & { L?: LeafletFactory }).L ?? null;
+		return (window as Window & { L?: any }).L ?? null;
 	};
 
 	const hasLeaflet = () => getLeaflet() !== null;
@@ -146,13 +100,13 @@
 
 		leafletMap = L.map(mapEl, {
 			zoomControl: true,
-			attributionControl: true,
+			attributionControl: false,
 			preferCanvas: true
 		}).setView(center, zoom);
 
 		L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
 			maxZoom: 19,
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'
 		}).addTo(leafletMap);
 
 		heatLayer = L.featureGroup().addTo(leafletMap);
@@ -163,8 +117,8 @@
 			const activeRouteId = selectedActivityId ?? highlightedActivityId;
 			refreshRouteDecorations(activeRouteId);
 		};
-		leafletMap.on('zoomend', mapChangeHandler);
-		leafletMap.on('moveend', mapChangeHandler);
+		leafletMap!.on('zoomend', mapChangeHandler);
+		leafletMap!.on('moveend', mapChangeHandler);
 
 		const mapClickHandler = (e: any) => {
 			if (selectedActivityId !== null) return;
@@ -176,7 +130,7 @@
 			const L = getLeaflet();
 			if (!L) return;
 			
-			leafletMap.closePopup();
+			leafletMap!.closePopup();
 			L.popup({
 				closeButton: true,
 				autoClose: true
@@ -185,13 +139,13 @@
 				.setContent(heatPopup(routes))
 				.openOn(leafletMap);
 		};
-		leafletMap.on('click', mapClickHandler);
-		heatLayer.on('click', mapClickHandler);
+		leafletMap!.on('click', mapClickHandler);
+		heatLayer!.on('click', mapClickHandler);
 
 		const popupCloseHandler = () => {
 			onActivityLeave();
 		};
-		leafletMap.on('popupclose', popupCloseHandler);
+		leafletMap!.on('popupclose', popupCloseHandler);
 
 		const popupInteractionHandler = (event: Event) => {
 			const target = event.target;
@@ -277,7 +231,7 @@
 				continue;
 			}
 
-			heatRouteGeometries.push({ route, points });
+			heatRouteGeometries.push({ route, points: points as import('$lib/types/strava').LatLng[] });
 
 			const polyline = L.polyline(points, {
 				...baseRouteStyle(index)
@@ -292,10 +246,43 @@
 		redrawHeatLayer();
 
 		if (!didInitialFit && currentRoutes.length > 0 && routeLayer.getLayers().length > 0) {
-			leafletMap.fitBounds(routeLayer.getBounds(), {
-				padding: [28, 28],
-				maxZoom: 14
-			});
+			const L = getLeaflet();
+			
+			// Find most recent route
+			let mostRecentRoute = currentRoutes[0];
+			for (const route of currentRoutes) {
+				if (new Date(route.startTime).getTime() > new Date(mostRecentRoute.startTime).getTime()) {
+					mostRecentRoute = route;
+				}
+			}
+
+			const oneMonthMs = 30 * 24 * 60 * 60 * 1000;
+			const isWithinPastMonth = (Date.now() - new Date(mostRecentRoute.startTime).getTime()) < oneMonthMs;
+
+			let centered = false;
+
+			if (isWithinPastMonth) {
+				const recentPolyline = routePolylines.get(mostRecentRoute.id);
+				if (recentPolyline) {
+					leafletMap.fitBounds(recentPolyline.getBounds(), {
+						padding: [28, 28],
+						maxZoom: 14
+					});
+					centered = true;
+				}
+			}
+
+			if (!centered && L) {
+				const heatCenter = getHighestDensityCenter(heatLayerData);
+				if (heatCenter) {
+					leafletMap.setView(heatCenter, 13);
+				} else {
+					leafletMap.fitBounds(routeLayer.getBounds(), {
+						padding: [28, 28],
+						maxZoom: 14
+					});
+				}
+			}
 			didInitialFit = true;
 		}
 	});
@@ -519,10 +506,10 @@
 				x: segmentEnd.x - segmentStart.x,
 				y: segmentEnd.y - segmentStart.y
 			};
-			const arrow = routeArrowFromVector(tip, direction);
+			const arrow = routeArrowFromVector(tip as unknown as Point, direction as unknown as Point);
 
 			if (arrow) {
-				arrows.push(arrow);
+				arrows.push(arrow as unknown as LatLngTuple[]);
 			}
 		}
 
@@ -563,9 +550,9 @@
 		};
 
 		return [
-			leafletMap.layerPointToLatLng(left),
-			leafletMap.layerPointToLatLng(tip),
-			leafletMap.layerPointToLatLng(right)
+			leafletMap.layerPointToLatLng(left as unknown as Point),
+			leafletMap.layerPointToLatLng(tip as unknown as Point),
+			leafletMap.layerPointToLatLng(right as unknown as Point)
 		];
 	}
 
@@ -583,7 +570,7 @@
 		return Math.hypot(a.x - b.x, a.y - b.y);
 	}
 
-	function markerIcon(L: LeafletFactory, icon: FontAwesomeIcon, className: string) {
+	function markerIcon(L: any, icon: FontAwesomeIcon, className: string) {
 		const svg = fontAwesomeSvg(icon);
 		return L.divIcon({
 			className: 'route-marker-wrapper',

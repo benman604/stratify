@@ -1,5 +1,5 @@
 import type { LatLng, Route } from '$lib/types/strava';
-import type { LeafletMap } from 'svelte-leafletjs';
+import type { Map as LeafletMap } from 'leaflet';
 
 export type HeatLineStyle = {
 	color: string;
@@ -236,9 +236,8 @@ export function routesForPoint(
 
 	// --- zoom-aware expansion ---
 	const metersPerPixel = getMetersPerPixel(map);
-	const cellSizeMeters = heatCellSizeMeters;
 
-	const cellsPerPixel = metersPerPixel / cellSizeMeters;
+	const cellsPerPixel = metersPerPixel / heatCellSizeMeters;
 
 	// how many cells we expand outward (Manhattan radius in cell space)
 	const PIXEL_AREA = 3; // tune this
@@ -439,17 +438,39 @@ export function projectedCellToLatLng(cellX: number, cellY: number): LatLng {
 	return [lat, lng];
 }
 
+export function getHighestDensityCenter(heatLayerData: HeatLayerData): LatLng | null {
+	if (heatLayerData.cellsByKey.size === 0) return null;
+
+	let maxCount = -1;
+	let bestCell: HeatCell | null = null;
+
+	for (const cell of heatLayerData.cellsByKey.values()) {
+		const weight = cell.routeIds.size;
+		if (weight > maxCount) {
+			maxCount = weight;
+			bestCell = cell;
+		}
+	}
+
+	if (!bestCell) return null;
+
+	// Add 0.5 to get the center of the cell
+	return projectedCellToLatLng(bestCell.x + 0.5, bestCell.y + 0.5);
+}
+
 function formatPopupActivityDate(route: Route) {
+	const isSameYear = new Date(route.startTime).getFullYear() === new Date().getFullYear();
 	return new Intl.DateTimeFormat(undefined, {
 		weekday: 'short',
 		month: 'short',
-		day: 'numeric'
+		day: 'numeric',
+		year: isSameYear ? undefined : 'numeric'
 	}).format(new Date(route.localStartTime || route.startTime));
 }
 
 function heatColor(intensity: number) {
-	const start = [222, 230, 168];
-	const end = [139, 0, 0];
+	const start = [255, 250, 250];
+	const end = [255, 0, 0];
 	const color = start.map((channel, index) =>
 		Math.round(channel + (end[index] - channel) * intensity)
 	);
@@ -476,7 +497,7 @@ function distanceToCellCenter(point: ProjectedPoint, cell: HeatCell) {
 	return Math.hypot(point.x - centerX, point.y - centerY);
 }
 
-function projectedCell(value: number) {
+export function projectedCell(value: number) {
 	return Math.floor(value / heatCellSizeMeters);
 }
 
@@ -484,7 +505,7 @@ function cellKey(x: number, y: number) {
 	return `${x}:${y}`;
 }
 
-function projectLatLng([lat, lng]: LatLng): ProjectedPoint {
+export function projectLatLng([lat, lng]: LatLng): ProjectedPoint {
 	const clampedLat = Math.max(Math.min(lat, 85.05112878), -85.05112878);
 	const lngRadians = (lng * Math.PI) / 180;
 	const latRadians = (clampedLat * Math.PI) / 180;
@@ -495,13 +516,13 @@ function projectLatLng([lat, lng]: LatLng): ProjectedPoint {
 	};
 }
 
-export function projectLatLngExport([lat, lng]: LatLng): ProjectedPoint {
-	return projectLatLng([lat, lng]);
-}
+// export function projectLatLngExport([lat, lng]: LatLng): ProjectedPoint {
+// 	return projectLatLng([lat, lng]);
+// }
 
-export function projectedCellExport(value: number): number {
-	return projectedCell(value);
-}
+// export function projectedCellExport(value: number): number {
+// 	return projectedCell(value);
+// }
 
 export function getCellSizeMeters(): number {
 	return heatCellSizeMeters;
