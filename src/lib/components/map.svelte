@@ -41,6 +41,7 @@
 		routes = [],
 		highlightedActivityId = null,
 		selectedActivityId = null,
+		hoverLatLng = null,
 		onActivityHover = () => {},
 		onActivityLeave = () => {},
 		onActivitySelect = () => {}
@@ -48,6 +49,7 @@
 		routes?: Route[];
 		highlightedActivityId?: number | null;
 		selectedActivityId?: number | null;
+		hoverLatLng?: LatLng | null;
 		onActivityHover?: (activityId: number) => void;
 		onActivityLeave?: () => void;
 		onActivitySelect?: (activityId: number) => void;
@@ -66,6 +68,7 @@
 	let leafletReady = $state(false);
 	let heatLayerData: HeatLayerData | null = null;
 	let heatRouteGeometries: RouteGeometry[] = [];
+	let hoverMarker: import('leaflet').CircleMarker | null = null;
 
 	const center: LatLng = [37.7749, -122.4194];
 	const zoom = 11;
@@ -608,6 +611,30 @@
 
 		return coordinates;
 	}
+
+	$effect(() => {
+		const L = getLeaflet();
+		if (!L || !leafletMap || !routeLayer) return;
+
+		if (hoverLatLng) {
+			if (!hoverMarker) {
+				hoverMarker = L.circleMarker(hoverLatLng, {
+					radius: 5,
+					color: '#fff',
+					fillColor: '#ef4444',
+					fillOpacity: 1,
+					weight: 2
+				}).addTo(leafletMap);
+			} else {
+				hoverMarker.setLatLng(hoverLatLng);
+			}
+		} else {
+			if (hoverMarker) {
+				hoverMarker.remove();
+				hoverMarker = null;
+			}
+		}
+	});
 
 	function decodeCoordinate(encoded: string, startIndex: number) {
 		let result = 0;

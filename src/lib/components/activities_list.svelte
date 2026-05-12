@@ -83,12 +83,12 @@
 	{#if activities.length === 0}
 		<p class="text-sm text-zinc-500">No activities found.</p>
 	{:else}
-		{#each activities as activity (activity.id)}
+		{#each activities as activity, i (activity.id)}
 			<button
 				type="button"
 				class={[
-					'flex w-full flex-col gap-1 rounded-lg p-2 text-left transition-colors',
-					cardClass(activity)
+					'bg-zinc-100 hover:bg-zinc-300 flex w-full flex-col gap-1 rounded-lg p-2 text-left transition-colors cursor-pointer',
+                    i == 0 ? 'mt-3' : '',
 				]}
 				aria-pressed={selectedActivityId === activity.id}
 				onclick={() => onActivitySelect(activity.id)}
@@ -97,17 +97,18 @@
 				onmouseleave={onActivityLeave}
 				onblur={onActivityLeave}
 			>
-				<div class="flex items-center gap-1">
-					<Fa icon={getActivityIcon(activity)} class={iconClass(activity)} />
+				<div class="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
 					<span class="font-medium">{activity.name}</span>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                        {formatDate(activity.startTime)}
+                    </p>
 				</div>
-
-				<p class="text-sm text-zinc-500 dark:text-zinc-400">
-					{formatDate(activity.startTime)}
-				</p>
-
+                
 				<div class="flex items-center justify-between text-sm">
-					<p>{formatDistance(activity.distance)} km</p>
+                    <div class="inline-flex items-center gap-1">
+                        <Fa icon={getActivityIcon(activity)} class='text-xl text-zinc-600' />
+                        <p>{formatDistance(activity.distance)} km</p>
+                    </div>
 
 					<p class="text-zinc-600">
 						{formatDuration(activity.durationSeconds)}

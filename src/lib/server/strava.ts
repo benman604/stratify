@@ -49,7 +49,7 @@ function isStravaSession(session: unknown): session is StravaSession {
 	);
 }
 
-async function refreshStravaSessionIfNeeded(
+export async function refreshStravaSessionIfNeeded(
 	cookies: Cookies,
 	eventFetch: Fetch,
 	session: StravaSession

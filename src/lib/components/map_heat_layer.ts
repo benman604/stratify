@@ -48,6 +48,10 @@ type ProjectedPoint = {
 	y: number;
 };
 
+export const heatStartColor = [255, 255, 100];
+export const heatEndColor = [255, 0, 0];
+// export const heatStartColor = [255, 255, 100];
+// export const heatEndColor = [0, 0, 255];
 const heatCellSizeMeters = 25;
 const earthRadiusMeters = 6378137;
 
@@ -186,14 +190,14 @@ export function renderRouteHeatLayer(
 			const midpoint = midpointLatLng(start, end);
 			const style = heatStyleForPoint(heatLayerData, midpoint);
 
-			if (!baseStyle) {
+			// if (!baseStyle) {
 				baseStyle = {
 					lineCap: style.lineCap,
 					lineJoin: style.lineJoin,
 					opacity: style.opacity,
 					weight: style.weight
 				};
-			}
+			// }
 
 			let segments = segmentsByColor.get(style.color);
 			if (!segments) {
@@ -270,17 +274,18 @@ export function routesForPoint(
 
 export function heatStyleForPoint(heatLayerData: HeatLayerData, point: LatLng): HeatLineStyle {
 	const heat = heatAtPoint(heatLayerData, point);
+	const a = 0.4;
 	const intensity =
 		heatLayerData.maxCellCount === 1
 			? 1
-			: Math.log1p(heat) / Math.log1p(heatLayerData.maxCellCount);
+			: Math.log1p(heat * a) / Math.log1p(heatLayerData.maxCellCount * a);
 	const color = heatColor(intensity);
 
 	return {
 		color,
 		lineCap: 'round',
 		lineJoin: 'round',
-		opacity: 0.9,
+		opacity: intensity,
 		weight: 4
 	};
 }
@@ -458,6 +463,14 @@ export function getHighestDensityCenter(heatLayerData: HeatLayerData): LatLng | 
 	return projectedCellToLatLng(bestCell.x + 0.5, bestCell.y + 0.5);
 }
 
+export function getHighestDensityColor(heatLayerData: HeatLayerData): string | null {
+	const center = getHighestDensityCenter(heatLayerData);
+	if (!center) return null;
+	
+	const style = heatStyleForPoint(heatLayerData, center);
+	return style.color;
+}
+
 function formatPopupActivityDate(route: Route) {
 	const isSameYear = new Date(route.startTime).getFullYear() === new Date().getFullYear();
 	return new Intl.DateTimeFormat(undefined, {
@@ -468,11 +481,10 @@ function formatPopupActivityDate(route: Route) {
 	}).format(new Date(route.localStartTime || route.startTime));
 }
 
+
 function heatColor(intensity: number) {
-	const start = [255, 250, 250];
-	const end = [255, 0, 0];
-	const color = start.map((channel, index) =>
-		Math.round(channel + (end[index] - channel) * intensity)
+	const color = heatStartColor.map((channel, index) =>
+		Math.round(channel + (heatEndColor[index] - channel) * intensity)
 	);
 
 	return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
@@ -495,6 +507,49 @@ function distanceToCellCenter(point: ProjectedPoint, cell: HeatCell) {
 	const centerY = (cell.y + 0.5) * heatCellSizeMeters;
 
 	return Math.hypot(point.x - centerX, point.y - centerY);
+}
+
+function decodeCoordinate(encoded: string, startIndex: number) {
+	let result = 0;
+	let shift = 0;
+	let index = startIndex;
+
+	while (index < encoded.length) {
+		const byte = encoded.charCodeAt(index) - 63;
+		index += 1;
+		result |= (byte & 0x1f) << shift;
+		shift += 5;
+
+		if (byte < 0x20) {
+			break;
+		}
+	}
+
+	return {
+		value: result & 1 ? ~(result >> 1) : result >> 1,
+		nextIndex: index
+	};
+}
+
+export function decodePolyline(encoded: string): LatLng[] {
+	const coordinates: LatLng[] = [];
+	let index = 0;
+	let lat = 0;
+	let lng = 0;
+
+	while (index < encoded.length) {
+		const decodedLat = decodeCoordinate(encoded, index);
+		lat += decodedLat.value;
+		index = decodedLat.nextIndex;
+
+		const decodedLng = decodeCoordinate(encoded, index);
+		lng += decodedLng.value;
+		index = decodedLng.nextIndex;
+
+		coordinates.push([lat / 1e5, lng / 1e5]);
+	}
+
+	return coordinates;
 }
 
 export function projectedCell(value: number) {

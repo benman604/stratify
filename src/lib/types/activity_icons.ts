@@ -17,7 +17,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { getActivitySportType, type StravaActivity } from '$lib/types/strava';
 
-const iconBySportType: Record<string, IconDefinition> = {
+export const iconBySportType: Record<string, IconDefinition> = {
 	AlpineSki: faPersonSkiing,
 	BackcountrySki: faPersonSkiing,
 	Canoeing: faWater,
