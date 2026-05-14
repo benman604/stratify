@@ -14,7 +14,9 @@ const spotifyScopes = [
 	'user-read-email',
 	'user-read-private',
 	'playlist-read-private',
-	'playlist-modify-private'
+	'playlist-modify-private',
+	'streaming',
+	'user-read-playback-state'
 ];
 
 export const GET: RequestHandler = ({ cookies, url, params }) => {
