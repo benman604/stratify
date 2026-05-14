@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+:root {
+    --theme-strava: rgb(223, 90, 41);
+    --theme-spotify: #0e923c;
+}
+
 @layer utilities {
   .no-scrollbar {
     scrollbar-width: thin;              /* Firefox */

@@ -7,9 +7,9 @@
 	import { faFilter, faSearch, faXmark, faChevronDown, faChevronUp, faRightFromBracket, faArrowDown, faArrowUp } from '@fortawesome/free-solid-svg-icons';
 	import { slide } from 'svelte/transition';
 	import { backOut, quartOut } from 'svelte/easing';
-	import { iconBySportType } from '$lib/types/activity_icons';
-	import type { Route } from '$lib/types/strava';
-	import { getActivitySportType } from '$lib/types/strava';
+	import { iconBySportType } from '$lib/util/activity_icons';
+	import type { Route } from '$lib/util/strava';
+	import { getActivitySportType } from '$lib/util/strava';
 
 	let { 
 		strava,
@@ -69,7 +69,7 @@
 
 	function toggleActivityType(sportType: string) {
 		// Special case: if all are selected, clicking one selects only that one
-		if (justOpenedActivityTypes && selectedSports.length === distinctActivityTypes.length) {
+		if (justOpenedActivityTypes && selectedSports.length >= distinctActivityTypes.length) {
 			selectedSports = [sportType];
 		} else {
 			// Normal toggle behavior
@@ -104,7 +104,7 @@
 
 <div>
 	{#if strava}
-		<div class="flex flex-wrap gap-2 items-center justify-between rounded bg-[rgb(233,90,41)] px-4 py-2 text-sm font-medium text-white">
+		<div class="flex flex-wrap gap-2 items-center justify-between rounded bg-(--theme-strava) px-4 py-2 text-sm font-medium text-white">
 			<div class="flex min-w-0 items-center gap-1">
 				<Fa icon={faStrava} class="text-xl shrink-0" />
 
@@ -174,7 +174,7 @@
 							<div class="daytime flex min-w-0 overflow-hidden rounded border border-red-300 text-[9px]">
 								<button
 									type="button"
-									class="{sortBy === 'date' ? 'selected' : ''} min-w-0 flex-1 truncate border-r p-1 hover:bg-gray-200 cursor-pointer transition"
+									class="{sortBy === 'date' ? 'selected' : ''} min-w-0 flex-1 truncate border-r p-1 hover:bg-gray-200 cursor-pointer"
 									onclick={() => setSortBy('date')}
 								>
 									<div class="flex flex-wrap justify-center text-[9px] font-bold">
@@ -188,7 +188,7 @@
 								</button>
 								<button
 									type="button"
-									class="{sortBy === 'distance' ? 'selected' : ''} min-w-0 flex-1 truncate border-r border-red-300 p-1 hover:bg-gray-200 cursor-pointer transition {sortBy === 'distance' ? 'bg-black text-white hover:bg-black' : 'bg-gray-200'}"
+									class="{sortBy === 'distance' ? 'selected' : ''} min-w-0 flex-1 truncate border-r border-red-300 p-1 hover:bg-gray-200 cursor-pointer {sortBy === 'distance' ? 'bg-black text-white hover:bg-black' : 'bg-gray-200'}"
 									onclick={() => setSortBy('distance')}
 								>
 									<div class="flex flex-wrap justify-center text-[9px] font-bold">
@@ -202,7 +202,7 @@
 								</button>
 								<button
 									type="button"
-									class="{sortBy === 'duration' ? 'selected' : ''} min-w-0 flex-1 truncate border-r border-red-300 p-1 hover:bg-gray-200 cursor-pointer transition {sortBy === 'duration' ? 'bg-black text-white hover:bg-black' : 'bg-gray-200'}"
+									class="{sortBy === 'duration' ? 'selected' : ''} min-w-0 flex-1 truncate border-r border-red-300 p-1 hover:bg-gray-200 cursor-pointer {sortBy === 'duration' ? 'bg-black text-white hover:bg-black' : 'bg-gray-200'}"
 									onclick={() => setSortBy('duration')}
 								>
 									<div class="flex flex-wrap justify-center text-[9px] font-bold">
@@ -270,7 +270,7 @@
 	{:else}
         <a
             href={resolve('/auth/strava')}
-            class="inline-flex items-center justify-between rounded bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 w-full"
+            class="inline-flex items-center justify-between rounded bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 w-full"
         >
 			<span>Connect Strava</span>
             <Fa icon={faStrava} class="text-2xl" />
@@ -309,6 +309,4 @@
 		background-color: #FFC2C5;
 		cursor: pointer;
 	}
-	/* Don't hide the date picker calendar indicator */
-	/* This allows the browser's native date picker to show */
 </style>

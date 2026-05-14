@@ -15,6 +15,7 @@ export type ConnectedAccount = {
 	profileUrl?: string;
 	expiresAt: number;
 	scope?: string;
+	accessToken?: string;
 };
 
 export type SpotifySession = {
@@ -97,7 +98,13 @@ export function getProviderSession(cookies: Cookies, service: Service) {
 }
 
 export function getConnectedAccount(cookies: Cookies, service: Service) {
-	return getProviderSession(cookies, service)?.account ?? null;
+	const session = getProviderSession(cookies, service);
+	const account = session?.account;
+	if (service === 'spotify' && account) {
+		// client requires access token for Web Playback SDK
+		account.accessToken = session?.accessToken;
+	}
+	return account ?? null;
 }
 
 export function getAuthError(url: URL) {

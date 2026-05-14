@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Fa } from 'svelte-fa';
 	import { faAngleLeft, faAngleRight } from '@fortawesome/free-solid-svg-icons';
-	import type { Photo } from '$lib/types/strava';
+	import type { Photo } from '$lib/util/strava';
 
 	let { photos = [] }: { photos?: Photo[] } = $props();
 

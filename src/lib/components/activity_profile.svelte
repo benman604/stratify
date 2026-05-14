@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Route } from '$lib/types/strava';
+	import type { Route } from '$lib/util/strava';
 
 	let {
 		activity,

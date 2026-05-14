@@ -9,12 +9,11 @@
 	import ActivitiesList from '$lib/components/activities_list.svelte';
 	import Map from '../lib/components/map.svelte';
 	import type { PageData } from './$types';
-	import Fa from 'svelte-fa';
-	import { faSpotify, faStrava } from '@fortawesome/free-brands-svg-icons';
-	import { heatStartColor, heatEndColor, getHighestDensityCenter, getHighestDensityColor, createHeatLayerData, decodePolyline } from '$lib/components/map_heat_layer';
-	import { faGasPump } from '@fortawesome/free-solid-svg-icons';
-	import { iconBySportType } from '$lib/types/activity_icons';
-	import { getActivitySportType } from '$lib/types/strava';
+	import { heatStartColor, heatEndColor, getHighestDensityCenter, getHighestDensityColor, createHeatLayerData, decodePolyline } from '$lib/util/map_heat_layer';
+	import { iconBySportType } from '$lib/util/activity_icons';
+	import { getActivitySportType } from '$lib/util/strava';
+
+	import { resolve } from '$app/paths';
 
 	const heatmapGradient = `linear-gradient(90deg, rgba(${heatStartColor.join(',')}, 0.3), rgb(${heatEndColor.join(',')}))`;
 
@@ -141,19 +140,64 @@
 			</div>
 
 			<div class="justify-self-end w-auto">
-				<div class="flex gap-4 text-blue-500">
-					<button class="hover:underline cursor-pointer">
-						File
-					</button>
-					<button class="hover:underline cursor-pointer">
-						Import
-					</button>
-					<button class="hover:underline cursor-pointer">
-						Share
-					</button>
-					<button class="hover:underline cursor-pointer">
-						Settings
-					</button>
+				<div class="flex gap-4 text-gray-500">
+					<div class="dropdown">
+						<button class="dropdown-button">
+							File
+						</button>
+						<div class="dropdown-content">
+							<button>
+								Open
+							</button>
+							<button>
+								Save
+							</button>
+							<button>
+								Save As
+							</button>
+							<button>
+								Share
+							</button>
+						</div>
+					</div>
+					<div class="dropdown">
+						<button class="dropdown-button">
+							Import
+						</button>
+						<div class="dropdown-content right-dropdown">
+							<button>
+								Route from Strava
+							</button>
+							<button>
+								Route from GPX
+							</button>
+							<button>
+								Playlist from Spotify
+							</button>
+							<button>
+								Manual song entry
+							</button>
+						</div>
+					</div>
+					{#if data.strava || data.spotify}
+						<div class="dropdown">
+							<button class="dropdown-button">
+								Accounts
+							</button>
+							<div class="dropdown-content right-dropdown">
+								{#if data.strava}
+									<a href={resolve('/auth/strava/logout')} class="w-full text-left">
+										Disconnect Strava
+									</a>
+								{/if}
+								{#if data.spotify}
+									<a href={resolve('/auth/spotify/logout')} class="w-full text-left">
+										Disconnect Spotify
+									</a>
+								{/if}
+							</div>
+						</div>
+					{/if}
 
 				</div>
 			</div>
@@ -243,8 +287,8 @@
 										></div>
 
 										<div class="flex justify-between text-xs text-zinc-400">
-											<span>1 activity</span>
-											<span>{highestDensityCount} activities</span>
+											<span>Less</span>
+											<span>More</span>
 										</div>
 									</div>
 
@@ -293,7 +337,7 @@
 
 		<section class="h-full min-h-0 w-64 px-4 pt-0 pb-4">
 			<div class="flex h-full min-h-0 w-full flex-col">
-				<div class="flex shrink-0 flex-col rounded-lg bg-olive-100">
+				<div class="flex shrink-0 flex-col rounded-lg bg-gray-200">
 					<SpotifyIsland spotify={data.spotify} />
 					
 					{#if data.spotify}
@@ -306,7 +350,7 @@
 				<div class="flex flex-1 flex-col rounded-lg bg-olive-100 mt-3">
 					{#if data.spotify}
 						<div class="mt-auto">
-							<SpotifyPlayback />
+							<SpotifyPlayback token={data.spotify?.accessToken || null} />
 						</div>
 					{/if}
 				</div>
@@ -332,3 +376,56 @@
 		</section>
 	</div>
 </main>
+
+
+<style>
+	.dropdown {
+		position: relative;
+		display: inline-block;
+	}
+
+	.dropdown-content {
+		display: none;
+		position: absolute;
+		background-color: white;
+		border-radius: 6px;
+		width: max-content;
+		min-width: 70px;
+		border: 1px solid #ccced2;
+		z-index: 1000000;
+		padding: 8px;
+	}
+
+	.dropdown-content.right-dropdown {
+		right: 0;
+	}
+
+	.dropdown-content button,
+	.dropdown-content a {
+		width: 100%;
+		text-align: left;
+		padding: 0;
+		display: block;
+	}
+
+	.dropdown:hover .dropdown-content {
+		display: flex;
+		flex-direction: column;
+		gap: 0px;
+		justify-content: flex-start;
+		align-items: flex-start;
+		text-align: left;
+	}
+
+	.dropdown-content button:hover,
+	.dropdown-content a:hover {
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	.dropdown:hover .dropdown-button {
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+</style>

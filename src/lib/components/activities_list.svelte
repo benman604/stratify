@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Route } from '$lib/types/strava';
+	import type { Route } from '$lib/util/strava';
 	import { Fa } from 'svelte-fa';
-	import { getActivityIcon } from '$lib/types/activity_icons';
+	import { getActivityIcon } from '$lib/util/activity_icons';
 
 	let {
 		activities = [],
@@ -87,7 +87,7 @@
 			<button
 				type="button"
 				class={[
-					'bg-zinc-100 hover:bg-zinc-300 flex w-full flex-col gap-1 rounded-lg p-2 text-left transition-colors cursor-pointer',
+					'bg-zinc-100 hover:bg-zinc-300 flex w-full flex-col gap-1 rounded-lg p-2 text-left cursor-pointer',
                     i == 0 ? 'mt-3' : '',
 				]}
 				aria-pressed={selectedActivityId === activity.id}

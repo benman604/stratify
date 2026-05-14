@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Fa } from 'svelte-fa';
     import { faAngleLeft } from '@fortawesome/free-solid-svg-icons';
-	import { getActivityIcon } from '$lib/types/activity_icons';
+	import { getActivityIcon } from '$lib/util/activity_icons';
 	import PhotoCarousel from '$lib/components/photo_carousel.svelte';
-	import type { Route } from '$lib/types/strava';
-	import type { Photo } from '$lib/types/strava';
+	import type { Route } from '$lib/util/strava';
+	import type { Photo } from '$lib/util/strava';
 
 	let { activity, onBack = () => {} }: { activity: Route; onBack?: () => void } = $props();
 

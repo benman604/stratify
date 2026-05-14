@@ -14,7 +14,7 @@
 
 <div>
 	{#if spotify}
-        <div class="flex flex-wrap gap-2 items-center justify-between rounded bg-green-600 px-4 py-2 text-sm font-medium text-white">
+        <div class="flex flex-wrap gap-2 items-center justify-between rounded bg-(--theme-spotify) px-4 py-2 text-sm font-medium text-white">
             <div class="flex min-w-0 items-center gap-1">
                 <Fa icon={faSpotify} class="text-xl shrink-0" />
 
@@ -46,7 +46,7 @@
                 </div>
 
                 <div class="ml-auto text-[10px] inline-flex items-center gap-2">
-                    <button class="cursor-pointer hover:text-green-300">
+                    <button class="bg-white text-gray-500 p-0.5 rounded-md cursor-pointer hover:text-green-300">
                         Songs
                     </button>
                     <button class="cursor-pointer hover:text-green-300">

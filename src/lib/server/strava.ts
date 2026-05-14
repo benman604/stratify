@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { getProviderSession, setProviderSession, type StravaSession } from '$lib/server/auth';
-import { toRoute, type Route, type StravaActivity } from '$lib/types/strava';
+import { toRoute, type Route, type StravaActivity } from '$lib/util/strava';
 import type { Cookies } from '@sveltejs/kit';
 
 type Fetch = typeof fetch;

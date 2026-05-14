@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { faFlagCheckered, faMapPin } from '@fortawesome/free-solid-svg-icons';
-	import type { Route } from '$lib/types/strava';
+	import type { Route } from '$lib/util/strava';
 	import { SvelteMap } from 'svelte/reactivity';
 	import {
 		createHeatLayerData,
@@ -10,7 +10,7 @@
 		heatPopup,
 		type HeatLayerData,
 		type RouteGeometry
-	} from './map_heat_layer';
+	} from '$lib/util/map_heat_layer';
 
 	// import { LeafletMap } from 'svelte-leafletjs';
 
@@ -234,7 +234,7 @@
 				continue;
 			}
 
-			heatRouteGeometries.push({ route, points: points as import('$lib/types/strava').LatLng[] });
+			heatRouteGeometries.push({ route, points: points as import('$lib/util/strava').LatLng[] });
 
 			const polyline = L.polyline(points, {
 				...baseRouteStyle(index)
@@ -730,15 +730,11 @@
 		padding: 7px 8px;
 		color: #18181b;
 		text-align: left;
-		transition:
-			background-color 140ms ease,
-			color 140ms ease;
 	}
 
 	:global(.heatmap-popup__activity:hover),
 	:global(.heatmap-popup__activity:focus-visible) {
-		background: #fed7aa;
-		color: #9a3412;
+		background: rgb(212,212,216);
 		outline: none;
 	}
 

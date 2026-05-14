@@ -1,5 +1,5 @@
 import { getProviderSession, setProviderSession, type StravaSession } from '$lib/server/auth';
-import type { Photo } from '$lib/types/strava';
+import type { Photo } from '$lib/util/strava';
 import type { RequestHandler, Cookies } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 

@@ -1,4 +1,4 @@
-import type { LatLng, Route } from '$lib/types/strava';
+import type { LatLng, Route } from '$lib/util/strava';
 import type { Map as LeafletMap } from 'leaflet';
 
 export type HeatLineStyle = {
@@ -48,7 +48,7 @@ type ProjectedPoint = {
 	y: number;
 };
 
-export const heatStartColor = [255, 255, 100];
+export const heatStartColor = [255, 255, 255];
 export const heatEndColor = [255, 0, 0];
 // export const heatStartColor = [255, 255, 100];
 // export const heatEndColor = [0, 0, 255];
@@ -274,7 +274,7 @@ export function routesForPoint(
 
 export function heatStyleForPoint(heatLayerData: HeatLayerData, point: LatLng): HeatLineStyle {
 	const heat = heatAtPoint(heatLayerData, point);
-	const a = 0.4;
+	const a = 1;
 	const intensity =
 		heatLayerData.maxCellCount === 1
 			? 1
@@ -285,7 +285,7 @@ export function heatStyleForPoint(heatLayerData: HeatLayerData, point: LatLng): 
 		color,
 		lineCap: 'round',
 		lineJoin: 'round',
-		opacity: intensity,
+		opacity: 0.8,
 		weight: 4
 	};
 }
